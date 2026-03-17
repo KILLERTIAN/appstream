@@ -6,26 +6,46 @@ import { Colors } from '@/constants/theme';
 
 export default function AppTabs() {
   const scheme = useColorScheme();
-  const colors = Colors[scheme === 'unspecified' ? 'light' : scheme];
+  const themeMode = scheme === 'dark' ? 'dark' : 'light';
+  const colors = Colors[themeMode];
 
   return (
     <NativeTabs
+      minimizeBehavior="onScrollDown"
       backgroundColor={colors.background}
-      indicatorColor={colors.backgroundElement}
-      labelStyle={{ selected: { color: colors.text } }}>
+      indicatorColor="#007AFF"
+      labelStyle={{ 
+        selected: { color: '#007AFF' }
+      }}>
       <NativeTabs.Trigger name="index">
-        <NativeTabs.Trigger.Label>Home</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Label>Explore</NativeTabs.Trigger.Label>
+        {/* @ts-ignore - SDK 55 uses sf prop */}
         <NativeTabs.Trigger.Icon
-          src={require('@/assets/images/tabIcons/home.png')}
-          renderingMode="template"
+          sf={{ default: 'house', selected: 'house.fill' }}
         />
       </NativeTabs.Trigger>
 
-      <NativeTabs.Trigger name="explore">
-        <NativeTabs.Trigger.Label>Explore</NativeTabs.Trigger.Label>
+      <NativeTabs.Trigger name="search" role="search">
+        <NativeTabs.Trigger.Label>Search</NativeTabs.Trigger.Label>
+        {/* @ts-ignore */}
         <NativeTabs.Trigger.Icon
-          src={require('@/assets/images/tabIcons/explore.png')}
-          renderingMode="template"
+          sf={{ default: 'magnifyingglass', selected: 'magnifyingglass' }}
+        />
+      </NativeTabs.Trigger>
+
+      <NativeTabs.Trigger name="library">
+        <NativeTabs.Trigger.Label>Apps</NativeTabs.Trigger.Label>
+        {/* @ts-ignore */}
+        <NativeTabs.Trigger.Icon
+          sf={{ default: 'square.stack.3d.up', selected: 'square.stack.3d.up.fill' }}
+        />
+      </NativeTabs.Trigger>
+
+      <NativeTabs.Trigger name="settings">
+        <NativeTabs.Trigger.Label>Account</NativeTabs.Trigger.Label>
+        {/* @ts-ignore */}
+        <NativeTabs.Trigger.Icon
+          sf={{ default: 'person.crop.circle', selected: 'person.crop.circle.fill' }}
         />
       </NativeTabs.Trigger>
     </NativeTabs>

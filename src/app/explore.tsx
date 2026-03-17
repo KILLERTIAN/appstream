@@ -142,7 +142,7 @@ const styles = StyleSheet.create({
     gap: Spacing.three,
     alignItems: 'center',
     paddingHorizontal: Spacing.four,
-    paddingVertical: Spacing.six,
+    paddingVertical: Spacing.four,
   },
   centerText: {
     textAlign: 'center',
