@@ -19,9 +19,10 @@ export default function AppTabs() {
       }}>
       <NativeTabs.Trigger name="index">
         <NativeTabs.Trigger.Label>Explore</NativeTabs.Trigger.Label>
-        {/* @ts-ignore - SDK 55 uses sf prop */}
+        {/* @ts-ignore - SDK 55 uses sf/md props */}
         <NativeTabs.Trigger.Icon
           sf={{ default: 'house', selected: 'house.fill' }}
+          md="home"
         />
       </NativeTabs.Trigger>
 
@@ -29,7 +30,8 @@ export default function AppTabs() {
         <NativeTabs.Trigger.Label>Search</NativeTabs.Trigger.Label>
         {/* @ts-ignore */}
         <NativeTabs.Trigger.Icon
-          sf={{ default: 'magnifyingglass', selected: 'magnifyingglass' }}
+          sf="magnifyingglass"
+          md="search"
         />
       </NativeTabs.Trigger>
 
@@ -38,6 +40,7 @@ export default function AppTabs() {
         {/* @ts-ignore */}
         <NativeTabs.Trigger.Icon
           sf={{ default: 'square.stack.3d.up', selected: 'square.stack.3d.up.fill' }}
+          md="apps"
         />
       </NativeTabs.Trigger>
 
@@ -46,6 +49,7 @@ export default function AppTabs() {
         {/* @ts-ignore */}
         <NativeTabs.Trigger.Icon
           sf={{ default: 'person.crop.circle', selected: 'person.crop.circle.fill' }}
+          md="person"
         />
       </NativeTabs.Trigger>
     </NativeTabs>

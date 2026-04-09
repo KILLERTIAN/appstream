@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>AppStream — Browser Test</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #000; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; font-family: -apple-system, sans-serif; }
+    #hud { position: fixed; top: 12px; left: 12px; color: #34C759; font-size: 11px; z-index: 10; background: rgba(0,0,0,0.7); padding: 6px 12px; border-radius: 8px; font-family: 'SF Mono', monospace; }
+    #screen { max-height: 100vh; max-width: 100vw; touch-action: none; image-rendering: optimizeSpeed; }
+  </style>
+</head>
+<body>
+  <div id="hud">Connecting...</div>
+  <img id="screen" />
+
+  <script>
+    const hud = document.getElementById('hud');
+    const screen = document.getElementById('screen');
+    const host = location.host;
+    const wsProtocol = location.protocol === 'https:' ? 'wss' : 'ws';
+
+    // ── State ──
+    let deviceW = 1080, deviceH = 1920;
+    let frameCount = 0, lastFpsTime = Date.now(), totalBytes = 0;
+
+    // ── Video WebSocket ──
+    const videoWs = new WebSocket(`${wsProtocol}://${host}/video`);
+    videoWs.binaryType = 'arraybuffer';
+
+    videoWs.onopen = () => { hud.textContent = '🟢 Connected'; };
+    
+    videoWs.onmessage = (evt) => {
+      if (typeof evt.data === 'string') {
+        const cfg = JSON.parse(evt.data);
+        if (cfg.type === 'config') {
+          deviceW = cfg.width;
+          deviceH = cfg.height;
+          hud.textContent = `🟢 ${cfg.width}x${cfg.height} @ ${cfg.fps || 15}fps target`;
+        }
+      } else {
+        // Binary image frame (JPEG or PNG)
+        frameCount++;
+        totalBytes += evt.data.byteLength;
+        
+        const u8 = new Uint8Array(evt.data);
+        const isPng = u8.length >= 8 &&
+          u8[0] === 0x89 && u8[1] === 0x50 && u8[2] === 0x4E && u8[3] === 0x47 &&
+          u8[4] === 0x0D && u8[5] === 0x0A && u8[6] === 0x1A && u8[7] === 0x0A;
+        const blob = new Blob([evt.data], { type: isPng ? 'image/png' : 'image/jpeg' });
+        const url = URL.createObjectURL(blob);
+        
+        // Swap image src for minimal reflow
+        const oldUrl = screen.src;
+        screen.src = url;
+        if (oldUrl && oldUrl.startsWith('blob:')) URL.revokeObjectURL(oldUrl);
+
+        // Update HUD
+        const now = Date.now();
+        if (now - lastFpsTime >= 1000) {
+          const fps = Math.round(frameCount * 1000 / (now - lastFpsTime));
+          const kbps = Math.round(totalBytes * 8 / (now - lastFpsTime));
+          hud.textContent = `🟢 ${fps} FPS • ${kbps} kbps`;
+          frameCount = 0;
+          totalBytes = 0;
+          lastFpsTime = now;
+        }
+      }
+    };
+
+    videoWs.onclose = () => { hud.textContent = '🔴 Disconnected'; hud.style.color = '#FF3B30'; };
+
+    // ── Input WebSocket ──
+    const inputWs = new WebSocket(`${wsProtocol}://${host}/input`);
+
+    function sendInput(msg) {
+      if (inputWs.readyState === 1) inputWs.send(JSON.stringify(msg));
+    }
+
+    // ── Touch handling ──
+    let startPos = null, startTime = 0;
+
+    function getCoords(e) {
+      const t = e.changedTouches ? e.changedTouches[0] : e;
+      const r = screen.getBoundingClientRect();
+      return {
+        x: Math.round(((t.clientX - r.left) / r.width) * deviceW),
+        y: Math.round(((t.clientY - r.top) / r.height) * deviceH),
+      };
+    }
+
+    screen.addEventListener('pointerdown', (e) => {
+      startPos = getCoords(e);
+      startTime = Date.now();
+    });
+
+    screen.addEventListener('pointerup', (e) => {
+      if (!startPos) return;
+      const end = getCoords(e);
+      const dx = Math.abs(end.x - startPos.x), dy = Math.abs(end.y - startPos.y);
+      const elapsed = Date.now() - startTime;
+
+      if (dx < 20 && dy < 20) {
+        sendInput(elapsed > 500 
+          ? { type: 'longpress', x: end.x, y: end.y }
+          : { type: 'tap', x: end.x, y: end.y });
+      } else {
+        sendInput({ type: 'swipe', x1: startPos.x, y1: startPos.y, x2: end.x, y2: end.y, duration: Math.min(elapsed, 1000) });
+      }
+      startPos = null;
+    });
+  </script>
+</body>
+</html>

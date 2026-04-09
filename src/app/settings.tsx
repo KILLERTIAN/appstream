@@ -1,5 +1,5 @@
-import React from 'react';
-import { StyleSheet, ScrollView, TouchableOpacity, View, Dimensions, useColorScheme } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { StyleSheet, ScrollView, TouchableOpacity, View, Dimensions, useColorScheme, TextInput } from 'react-native';
 import { SymbolView } from 'expo-symbols';
 import { useRouter } from 'expo-router';
 import { Image as ExpoImage } from 'expo-image';
@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing, Colors } from '@/constants/theme';
+import { getStreamUrl, setStreamUrl } from '@/utils/storage';
 
 const { width } = Dimensions.get('window');
 
@@ -18,21 +19,35 @@ export default function SettingsScreen() {
   const themeMode = scheme === 'dark' ? 'dark' : 'light';
   const colors = Colors[themeMode];
 
-  const SettingItem = ({ icon, label, rightText, color = '#8E8E93', isLast = false }: any) => (
-    <TouchableOpacity style={styles.settingItem} activeOpacity={0.7}>
+  const [url, setServerUrl] = useState('');
+
+  useEffect(() => {
+    getStreamUrl().then(setServerUrl);
+  }, []);
+
+  const handleUrlChange = (newUrl: string) => {
+    setServerUrl(newUrl);
+    setStreamUrl(newUrl);
+  };
+
+  const SettingItem = ({ icon, label, rightText, color = '#8E8E93', isLast = false, children }: any) => (
+    <View style={styles.settingItem}>
       <View style={[styles.settingIconBg, { backgroundColor: color }]}>
         {/* @ts-ignore */}
         <SymbolView name={icon} size={16} tintColor="#FFFFFF" />
       </View>
       <View style={[styles.settingContent, isLast && { borderBottomWidth: 0 }]}>
-        <ThemedText type="default" style={styles.settingLabel}>{label}</ThemedText>
+        <View style={{ flex: 1 }}>
+            <ThemedText type="default" style={styles.settingLabel}>{label}</ThemedText>
+            {children}
+        </View>
         <View style={styles.settingRight}>
           {rightText && <ThemedText type="default" style={styles.rightText}>{rightText}</ThemedText>}
           {/* @ts-ignore */}
           <SymbolView name="chevron.right" size={16} tintColor="#C7C7CC" />
         </View>
       </View>
-    </TouchableOpacity>
+    </View>
   );
 
   const StatRing = ({ icon, label, value, subValue, percentage, color }: any) => (
@@ -94,6 +109,25 @@ export default function SettingsScreen() {
             </View>
             <View style={styles.proBadge}>
                 <ThemedText style={styles.proBadgeText}>PRO</ThemedText>
+            </View>
+        </View>
+
+        {/* Server Configuration */}
+        <View style={styles.sectionHeader}>
+            <ThemedText type="smallBold" style={styles.sectionTitle}>SERVER CONFIGURATION</ThemedText>
+        </View>
+        <View style={[styles.settingsGroup, { backgroundColor: themeMode === 'dark' ? '#1C1C1E' : '#FFFFFF' }]}>
+            <View style={styles.inputContainer}>
+                <ThemedText type="small" style={styles.inputLabel}>Stream Server URL (Cloudflare/ngrok)</ThemedText>
+                <TextInput 
+                    style={[styles.textInput, { color: colors.text, backgroundColor: themeMode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }]}
+                    value={url}
+                    onChangeText={handleUrlChange}
+                    placeholder="https://..."
+                    placeholderTextColor="#8E8E93"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                />
             </View>
         </View>
 
@@ -431,5 +465,21 @@ const styles = StyleSheet.create({
     marginTop: 24,
     color: '#8E8E93',
     fontSize: 12,
+  },
+  inputContainer: {
+    padding: 16,
+    gap: 8,
+  },
+  inputLabel: {
+    color: '#8E8E93',
+    fontSize: 11,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+  },
+  textInput: {
+    height: 44,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    fontSize: 14,
   }
 });
