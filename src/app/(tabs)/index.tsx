@@ -1,5 +1,5 @@
 import { Image as ExpoImage } from 'expo-image';
-import { useRouter, Stack } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import React, { useState } from 'react';
 import {
@@ -54,8 +54,12 @@ const FEATURED_COLLECTION = [
 
 const TOP_APPS = [
   { id: 'z1', name: 'Zomato', sub: 'Food Delivery • Fast', icon: require('@/assets/images/apps/zomato.png') },
+  { id: 's1', name: 'Swiggy', sub: 'Food Delivery • Instant', icon: require('@/assets/images/apps/swiggy.png') },
+  { id: 'a1', name: 'Amazon', sub: 'Shopping • Global', icon: require('@/assets/images/apps/amazon.png') },
   { id: '1', name: 'Roblox', sub: 'Adventure • Huge World', icon: require('@/assets/images/apps/robolox.png') },
   { id: '2', name: 'Instagram', sub: 'Social • Creative', icon: require('@/assets/images/apps/instagram.png') },
+  { id: 'c1', name: 'Chess', sub: 'Board Game • Strategy', icon: require('@/assets/images/apps/chess.png') },
+  { id: 'u1', name: 'Uno', sub: 'Card Game • Multiplayer', icon: require('@/assets/images/apps/zzz.png') },
   { id: '3', name: 'TikTok', sub: 'Video • Entertaining', icon: require('@/assets/images/apps/tiktok.png') },
   { id: '4', name: 'CapCut', sub: 'Video Editor • Pro', icon: require('@/assets/images/apps/capcut.png') },
   { id: '5', name: 'Spotify', sub: 'Music • Premium', icon: require('@/assets/images/apps/spotify.png') },

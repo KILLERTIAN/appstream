@@ -1,16 +1,20 @@
-import React, { useEffect, useState, useRef, useCallback } from 'react';
-import {
-  StyleSheet, View, ActivityIndicator, TouchableOpacity,
-  ImageBackground, StatusBar, Dimensions, PanResponder,
-  Animated,
-} from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  ActivityIndicator,
+  Animated,
+  Dimensions,
+  ImageBackground, StatusBar,
+  StyleSheet,
+  TouchableOpacity,
+  View
+} from 'react-native';
 import { WebView } from 'react-native-webview';
 
+import { GlassCard } from '@/components/glass-card';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { GlassCard } from '@/components/glass-card';
 import { Spacing } from '@/constants/theme';
 import { getStreamUrl } from '@/utils/storage';
 
@@ -18,6 +22,10 @@ const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 const APP_CONFIG_MAP: Record<string, { bg: any }> = {
   'zomato': { bg: require('@/assets/images/apps/genshin_bg.png') },
+  'swiggy': { bg: require('@/assets/images/apps/wuwa_bg.png') },
+  'amazon': { bg: require('@/assets/images/apps/wuwa_bg.png') },
+  'chess': { bg: require('@/assets/images/apps/zzz_bg.png') },
+  'uno': { bg: require('@/assets/images/apps/genshin_bg.png') },
   'dominoz': { bg: require('@/assets/images/apps/wuwa_bg.png') },
   'default': { bg: require('@/assets/images/apps/zzz_bg.png') },
 };
@@ -49,7 +57,7 @@ function buildStreamHTML(serverBaseUrl: string, appName: string) {
   <style>
     *{margin:0;padding:0;box-sizing:border-box}
     html,body{width:100%;height:100%;overflow:hidden;background:#000;touch-action:none}
-    #screen{width:100%;height:100%;object-fit:contain;display:block;pointer-events:auto}
+    #screen{width:100%;height:100%;object-fit:cover;display:block;pointer-events:auto}
   </style>
 </head>
 <body>
@@ -322,16 +330,17 @@ export default function StreamScreen() {
   const controlsOpacity = useRef(new Animated.Value(1)).current;
   const readyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const webViewRef = useRef<WebView>(null);
-  
+
   const appName = typeof id === 'string' ? id.toLowerCase() : 'default';
   const config = APP_CONFIG_MAP[appName] || APP_CONFIG_MAP['default'];
 
   const pushDebug = useCallback((line: string) => {
+    console.log(`[StreamDebug:${appName}]`, line);
     setDebugLines((prev) => {
       const next = [...prev, `${new Date().toLocaleTimeString()} ${line}`];
       return next.slice(-25);
     });
-  }, []);
+  }, [appName]);
 
   const connectToServer = useCallback(async () => {
     setConnectionError('');
@@ -341,7 +350,7 @@ export default function StreamScreen() {
       clearTimeout(readyTimeoutRef.current);
       readyTimeoutRef.current = null;
     }
-    
+
     const url = await getStreamUrl();
     setStreamUrl(url);
     pushDebug(`[url] ${url}`);
@@ -355,7 +364,7 @@ export default function StreamScreen() {
       clearTimeout(timeout);
       const data = await resp.json();
       pushDebug(`[health] ${resp.status} ${JSON.stringify(data)}`);
-      
+
       if (data.status === 'ok') {
         // Server is reachable — launch the app and start streaming
         pushDebug(`[launch] POST ${url}/launch appName=${appName}`);
@@ -364,7 +373,7 @@ export default function StreamScreen() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ appName }),
         }).catch((e) => pushDebug(`[launch] failed: ${String(e)}`)); // Fire and forget
-        
+
         setStreamHtml(buildStreamHTML(url, appName));
         pushDebug(`[webview] html injected`);
         // Wait for first frame; if we never get one, show a helpful error.
@@ -372,9 +381,9 @@ export default function StreamScreen() {
           setConnectionError(
             `Connected to server, but no video frames arrived.\n\nCheck:\n• Android emulator/device is visible/unlocked\n• ADB works (adb devices)\n• ffmpeg is installed\n• Server logs show frames`
           );
-          pushDebug(`[timeout] no first frame within 12s`);
+          pushDebug(`[timeout] no first frame within 30s`);
           setLoading(false);
-        }, 12000);
+        }, 30000);
       } else {
         setConnectionError(`Server responded but not ready`);
         pushDebug(`[health] not ok`);
@@ -425,179 +434,140 @@ export default function StreamScreen() {
         const detail = data.detail ? ` ${data.detail}` : '';
         pushDebug(`[wv:${data.level || 'info'}] ${data.msg || 'log'}${detail}`);
       }
-    } catch (e) {}
+    } catch (e) { }
   }, [pushDebug]);
 
-  if (loading) {
-    return (
-      <ThemedView style={styles.loadingContainer}>
-        <StatusBar barStyle="light-content" />
-        <ImageBackground 
-            source={config.bg} 
-            style={StyleSheet.absoluteFill} 
-            blurRadius={20}
-        >
-            <View style={styles.loadingOverlay}>
-                <ActivityIndicator size="large" color="#007AFF" />
-                <View style={styles.textStack}>
-                    <ThemedText type="subtitle" style={styles.loadingText}>Initializing {appName}</ThemedText>
-                    <ThemedText type="small" style={styles.subText}>Allocating Cloud HW: RTX 4090 vApp</ThemedText>
-                    {streamUrl ? (
-                      <ThemedText type="small" style={[styles.subText, { textAlign: 'center' }]}>
-                        {streamUrl}
-                      </ThemedText>
-                    ) : null}
-                </View>
-                
-                <GlassCard style={styles.loadingProgressCard}>
-                    <View style={styles.progressRow}>
-                        <ThemedText type="small" style={{ color: '#FFF' }}>Syncing State...</ThemedText>
-                        <ThemedText type="small" style={{ color: '#007AFF' }}>92%</ThemedText>
-                    </View>
-                    <View style={styles.progressBar}>
-                        <View style={[styles.progressFill, { width: '92%' }]} />
-                    </View>
-                </GlassCard>
-            </View>
-        </ImageBackground>
-      </ThemedView>
-    );
-  }
-
-  if (connectionError) {
-    return (
-      <ThemedView style={styles.loadingContainer}>
-        <StatusBar barStyle="light-content" />
-        <ImageBackground source={config.bg} style={StyleSheet.absoluteFill} blurRadius={40}>
-          <View style={[styles.loadingOverlay, { backgroundColor: 'rgba(0,0,0,0.8)' }]}>
-            <SymbolView name="wifi.slash" size={48} tintColor="#FF3B30" />
-            <View style={styles.textStack}>
-              <ThemedText type="subtitle" style={{ color: '#FF3B30' }}>Connection Failed</ThemedText>
-              <ThemedText type="default" style={[styles.subText, { textAlign: 'center', paddingHorizontal: 40 }]}>
-                {connectionError}
-              </ThemedText>
-            </View>
-
-            {debugLines.length ? (
-              <GlassCard style={[styles.loadingProgressCard, { backgroundColor: 'rgba(255,255,255,0.06)' }]}>
-                {debugLines.slice(-8).map((l, idx) => (
-                  <ThemedText key={idx} type="small" style={{ color: '#FFF', opacity: 0.75 }}>
-                    {l}
-                  </ThemedText>
-                ))}
-              </GlassCard>
-            ) : null}
-            
-            <TouchableOpacity style={styles.retryBtn} onPress={connectToServer}>
-              <ThemedText type="default" style={{ color: '#FFF', fontWeight: 'bold' }}>RETRY CONNECTION</ThemedText>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={{ marginTop: 20 }} onPress={() => router.back()}>
-              <ThemedText type="small" style={{ color: '#FFF', opacity: 0.5 }}>Go Back</ThemedText>
-            </TouchableOpacity>
-          </View>
-        </ImageBackground>
-      </ThemedView>
-    );
-  }
-
+  // ── Render: Always mount WebView behind overlays so it can connect ──
   return (
     <ThemedView style={styles.container}>
-      <StatusBar hidden />
-      
-      {/* The Stream — Custom WebSocket Client */}
-      <View style={styles.streamContainer}>
-        <WebView
-          ref={webViewRef}
-          source={{ html: streamHtml }}
-          style={styles.webView}
-          originWhitelist={['*']}
-          allowsInlineMediaPlayback
-          mediaPlaybackRequiresUserAction={false}
-          javaScriptEnabled={true}
-          domStorageEnabled={true}
-          scrollEnabled={false}
-          bounces={false}
-          showsHorizontalScrollIndicator={false}
-          showsVerticalScrollIndicator={false}
-          mixedContentMode="always"
-          allowsBackForwardNavigationGestures={false}
-          cacheEnabled={false}
-          overScrollMode="never"
-          onMessage={onWebViewMessage}
-          onError={(e) => pushDebug(`[webview] onError ${String(e?.nativeEvent?.description || '')}`)}
-          onHttpError={(e) => pushDebug(`[webview] onHttpError ${String(e?.nativeEvent?.statusCode || '')}`)}
-          onLoadStart={() => pushDebug(`[webview] loadStart`)}
-          onLoadEnd={() => {
-            pushDebug(`[webview] loadEnd`);
-            // Probe the RN<->WebView bridge. If we don't see this log come back,
-            // then postMessage is not reaching React Native.
-            webViewRef.current?.injectJavaScript(`
-              (function(){
-                try {
-                  var msg = JSON.stringify({ type: 'log', level: 'info', msg: 'rn_injected_ping' });
-                  if (window.ReactNativeWebView && window.ReactNativeWebView.postMessage) {
-                    window.ReactNativeWebView.postMessage(msg);
-                  } else if (window.webkit && window.webkit.messageHandlers) {
-                    var h = window.webkit.messageHandlers.ReactNativeWebView || window.webkit.messageHandlers.reactNativeWebView;
-                    if (h && h.postMessage) h.postMessage(msg);
-                  }
-                } catch (e) {}
-              })();
-              true;
-            `);
-          }}
-        />
+      <StatusBar hidden={true} />
 
-        {/* HUD Overlay */}
-        <View style={styles.overlayTouch} pointerEvents="box-none">
-          <TouchableOpacity 
-            style={styles.topHud} 
-            onPress={toggleControls}
-            activeOpacity={0.8}
+      {/* WebView renders hidden behind overlays once streamHtml is ready */}
+      {streamHtml ? (
+        <View style={StyleSheet.absoluteFill}>
+          <WebView
+            ref={webViewRef}
+            source={{ html: streamHtml, baseUrl: streamUrl }}
+            style={styles.webView}
+            originWhitelist={['*']}
+            allowsInlineMediaPlayback
+            mediaPlaybackRequiresUserAction={false}
+            javaScriptEnabled={true}
+            domStorageEnabled={true}
+            scrollEnabled={false}
+            bounces={false}
+            showsHorizontalScrollIndicator={false}
+            showsVerticalScrollIndicator={false}
+            mixedContentMode="always"
+            allowsBackForwardNavigationGestures={false}
+            cacheEnabled={false}
+            overScrollMode="never"
+            onMessage={onWebViewMessage}
+            onError={(e) => pushDebug(`[webview] onError ${String(e?.nativeEvent?.description || '')}`)}
+            onHttpError={(e) => pushDebug(`[webview] onHttpError ${String(e?.nativeEvent?.statusCode || '')}`)}
+            onLoadStart={() => pushDebug(`[webview] loadStart`)}
+            onLoadEnd={() => {
+              pushDebug(`[webview] loadEnd`);
+              webViewRef.current?.injectJavaScript(`
+                (function(){
+                  try {
+                    var msg = JSON.stringify({ type: 'log', level: 'info', msg: 'rn_injected_ping' });
+                    if (window.ReactNativeWebView && window.ReactNativeWebView.postMessage) {
+                      window.ReactNativeWebView.postMessage(msg);
+                    } else if (window.webkit && window.webkit.messageHandlers) {
+                      var h = window.webkit.messageHandlers.ReactNativeWebView || window.webkit.messageHandlers.reactNativeWebView;
+                      if (h && h.postMessage) h.postMessage(msg);
+                    }
+                  } catch (e) {}
+                })();
+                true;
+              `);
+            }}
+          />
+        </View>
+      ) : null}
+
+      {/* Loading overlay — shown on top of WebView while waiting for first frame */}
+      {loading && (
+        <View style={StyleSheet.absoluteFill}>
+          <ImageBackground
+            source={config.bg}
+            style={StyleSheet.absoluteFill}
+            blurRadius={20}
           >
-            <GlassCard style={styles.statusChip}>
-              <View style={styles.statusDot} />
-              <ThemedText type="small" style={{ color: '#FFF', fontSize: 10 }}>
-                LIVE • {liveStats.fps > 0 ? `${liveStats.fps} FPS` : 'CONNECTING'}
-              </ThemedText>
-            </GlassCard>
-          </TouchableOpacity>
+            <View style={styles.loadingOverlay}>
+              <ActivityIndicator size="large" color="#007AFF" />
+              <View style={styles.textStack}>
+                <ThemedText type="subtitle" style={styles.loadingText}>Initializing {appName}</ThemedText>
+                <ThemedText type="small" style={styles.subText}>Allocating Cloud HW: RTX 4090 vApp</ThemedText>
+                {streamUrl ? (
+                  <ThemedText type="small" style={[styles.subText, { textAlign: 'center' }]}>
+                    {streamUrl}
+                  </ThemedText>
+                ) : null}
+              </View>
 
-          {showControls && (
-            <Animated.View style={[styles.controls, { opacity: controlsOpacity }]}>
-              <GlassCard style={styles.controlsInner}>
-                <TouchableOpacity onPress={() => router.back()} style={styles.controlBtn}>
-                  <SymbolView name="xmark.circle.fill" size={32} tintColor="#FFF" />
-                </TouchableOpacity>
-                
-                <View style={styles.perfStats}>
-                  <ThemedText type="small" style={styles.perfText}>
-                    720p • {liveStats.fps > 0 ? `${liveStats.fps} FPS` : '-- FPS'}
-                  </ThemedText>
-                  <ThemedText type="small" style={[styles.perfText, { opacity: 0.5 }]}>
-                    {liveStats.kbps > 0 ? `${liveStats.kbps} kbps` : 'WebSocket Stream'}
-                  </ThemedText>
-                  {debugLines.length ? (
-                    <ThemedText type="small" style={[styles.perfText, { opacity: 0.45, fontWeight: '600' }]} numberOfLines={1}>
-                      {debugLines[debugLines.length - 1]}
-                    </ThemedText>
-                  ) : null}
+              <GlassCard style={styles.loadingProgressCard}>
+                <View style={styles.progressRow}>
+                  <ThemedText type="small" style={{ color: '#FFF' }}>Syncing State...</ThemedText>
+                  <ThemedText type="small" style={{ color: '#007AFF' }}>92%</ThemedText>
                 </View>
-
-                <View style={styles.rightActions}>
-                  <TouchableOpacity style={styles.controlBtn}>
-                    <SymbolView name="camera.viewfinder" size={28} tintColor="#FFF" />
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.controlBtn}>
-                    <SymbolView name="mic.fill" size={24} tintColor="#FFF" />
-                  </TouchableOpacity>
+                <View style={styles.progressBar}>
+                  <View style={[styles.progressFill, { width: '92%' }]} />
                 </View>
               </GlassCard>
-            </Animated.View>
-          )}
+            </View>
+          </ImageBackground>
         </View>
-      </View>
+      )}
+
+      {/* Error overlay */}
+      {connectionError ? (
+        <View style={StyleSheet.absoluteFill}>
+          <ImageBackground source={config.bg} style={StyleSheet.absoluteFill} blurRadius={40}>
+            <View style={[styles.loadingOverlay, { backgroundColor: 'rgba(0,0,0,0.8)' }]}>
+              <SymbolView name="wifi.slash" size={48} tintColor="#FF3B30" />
+              <View style={styles.textStack}>
+                <ThemedText type="subtitle" style={{ color: '#FF3B30' }}>Connection Failed</ThemedText>
+                <ThemedText type="default" style={[styles.subText, { textAlign: 'center', paddingHorizontal: 40 }]}>
+                  {connectionError}
+                </ThemedText>
+              </View>
+
+              {debugLines.length ? (
+                <GlassCard style={[styles.loadingProgressCard, { backgroundColor: 'rgba(255,255,255,0.06)' }]}>
+                  {debugLines.slice(-8).map((l, idx) => (
+                    <ThemedText key={idx} type="small" style={{ color: '#FFF', opacity: 0.75 }}>
+                      {l}
+                    </ThemedText>
+                  ))}
+                </GlassCard>
+              ) : null}
+
+              <TouchableOpacity style={styles.retryBtn} onPress={connectToServer}>
+                <ThemedText type="default" style={{ color: '#FFF', fontWeight: 'bold' }}>RETRY CONNECTION</ThemedText>
+              </TouchableOpacity>
+
+              <TouchableOpacity style={{ marginTop: 20 }} onPress={() => router.back()}>
+                <ThemedText type="small" style={{ color: '#FFF', opacity: 0.5 }}>Go Back</ThemedText>
+              </TouchableOpacity>
+            </View>
+          </ImageBackground>
+        </View>
+      ) : null}
+
+      {/* HUD Overlay — only when stream is active (not loading, no error) */}
+      {!loading && !connectionError && (
+        <View style={styles.overlayTouch} pointerEvents="box-none">
+          {/* Subtle Back Button for native feel without heavy UI */}
+          <TouchableOpacity
+            onPress={() => router.back()}
+            style={{ position: 'absolute', top: 20, right: 20, padding: 10, zIndex: 100 }}
+          >
+            <SymbolView name="xmark.circle.fill" size={24} tintColor="rgba(255,255,255,0.3)" />
+          </TouchableOpacity>
+        </View>
+      )}
     </ThemedView>
   );
 }

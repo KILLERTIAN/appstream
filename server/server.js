@@ -42,6 +42,10 @@ const APP_PACKAGES = {
   'dominoz': 'com.Dominos',
   'dominos': 'com.Dominos',
   'clash of clans': 'com.supercell.clashofclans',
+  'swiggy': 'in.swiggy.android',
+  'uno': 'com.matteljv.uno',
+  'amazon': 'in.amazon.mShop.android.shopping',
+  'chess': 'com.chess',
 };
 
 // ─── Express ─────────────────────────────────────────────────────
@@ -76,8 +80,10 @@ app.get('/', (req, res) => {
         const img = document.getElementById('stream');
         const container = document.getElementById('container');
         
-        const videoWs = new WebSocket('ws://' + location.host + '/video');
-        const inputWs = new WebSocket('ws://' + location.host + '/input');
+        const host = location.host;
+        const wsProtocol = location.protocol === 'https:' ? 'wss' : 'ws';
+        const videoWs = new WebSocket(\`\${wsProtocol}://\${host}/video\`);
+        const inputWs = new WebSocket(\`\${wsProtocol}://\${host}/input\`);
 
         videoWs.onmessage = (e) => {
           const url = URL.createObjectURL(e.data);
@@ -140,8 +146,15 @@ app.post('/launch', (req, res) => {
 
   // Use monkey to launch — works even without knowing the main activity
   exec(`adb shell monkey -p ${pkg} -c android.intent.category.LAUNCHER 1`, (err, stdout, stderr) => {
-    if (stderr && stderr.includes('No activities found')) {
-      return res.status(404).json({ error: `App not installed: ${pkg}` });
+    if (err || (stderr && (stderr.includes('No activities found') || stderr.includes('monkey aborted') || stderr.includes('not found')))) {
+      console.log(`[LAUNCH] App ${pkg} not installed, redirecting to Play Store...`);
+      exec(`adb shell am start -a android.intent.action.VIEW -d "market://details?id=${pkg}"`, (err2) => {
+        if (err2) {
+          // Fallback to web link if market:// isn't supported on this specific emulator
+          exec(`adb shell am start -a android.intent.action.VIEW -d "https://play.google.com/store/apps/details?id=${pkg}"`);
+        }
+      });
+      return res.json({ ok: true, package: pkg, redirect: 'playstore', note: 'App not installed, opened Play Store.' });
     }
     res.json({ ok: true, package: pkg });
   });
